@@ -354,6 +354,8 @@ Building the Eagle ecosystem:
 
 ### 🚧 Next Steps
 
+- **Better teminal experience** - add colors better waiting
+- **Make_Eagle tool** - eagle should be able to create new eagle projects with different tools
 - **Eagle Website** - Official documentation and community hub
 - **Downloadable Releases** - Standalone installers for all platforms
 - **Package Manager** - `eagle install <tool/config/rule>` for sharing components
