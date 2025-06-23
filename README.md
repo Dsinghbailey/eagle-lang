@@ -23,7 +23,21 @@ pip install eagle-lang
 
 ## Quick Start
 
-### Option 1: Interactive Mode (Recommended)
+### Option 1: Script Files
+
+1. **Initialize Eagle** in your project:
+```bash
+eagle init
+```
+
+2. **Create a `.caw` file** with your instructions:
+```
+# my_task.caw
+Help me write 3 tweets about the launch of a new AI programming language called Eagle.
+Focus on its ability to use plain English and be higher-level than Python. Use my_tone.txt to define my tone.
+```
+
+### Option 2: Interactive Mode
 
 ```bash
 # Install and initialize
@@ -39,20 +53,6 @@ Then type commands directly:
 eagle> create a python script that sorts a list of numbers
 eagle> test it with the numbers [3, 1, 4, 1, 5, 9]
 eagle> save the script as sort_demo.py
-```
-
-### Option 2: Script Files
-
-1. **Initialize Eagle** in your project:
-```bash
-eagle init
-```
-
-2. **Create a `.caw` file** with your instructions:
-```
-# my_task.caw
-Help me write 3 tweets about the launch of a new AI programming language called Eagle.
-Focus on its ability to use plain English and be higher-level than Python.
 ```
 
 3. **Run Eagle**:
