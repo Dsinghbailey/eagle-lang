@@ -1,4 +1,4 @@
-# Eagle - AI Programming Language
+# Eagle - An AI Programming Language
 
 **Write software in plain English.**
 
