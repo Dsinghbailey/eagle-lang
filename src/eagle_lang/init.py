@@ -2,6 +2,8 @@
 
 import os
 import shutil
+import json
+import time
 from .config import get_default_config, save_config
 from .interpreter import EagleInterpreter
 from .providers import PROVIDERS, get_provider_models, get_provider_api_key_env
@@ -15,10 +17,53 @@ def eagle_init(global_install: bool = False):
         global_install: If True, install config in user home directory. If False, install in current directory.
     """
     print("\n🦅 Welcome to Eagle Setup! 🦅")
+    
+    # Check for existing .eagle directory
+    project_eagle_dir = os.path.join(os.getcwd(), ".eagle")
+    user_eagle_dir = os.path.expanduser("~/.eagle")
+    
+    existing_config = None
+    if not global_install and os.path.exists(project_eagle_dir):
+        print(f"📁 Found existing .eagle directory: {project_eagle_dir}")
+        action = input("What would you like to do? (fresh/cancel): ").strip().lower()
+        if action == "cancel":
+            print("Setup cancelled.")
+            return
+        elif action == "fresh":
+            import shutil
+            backup_dir = f"{project_eagle_dir}_backup_{int(time.time())}"
+            shutil.move(project_eagle_dir, backup_dir)
+            print(f"📦 Backed up existing config to: {backup_dir}")
+            print("🆕 Starting fresh installation")
+        else:
+            print("Invalid option. Use 'eagle update-tools' to update tools only.")
+            return
+    elif global_install and os.path.exists(user_eagle_dir):
+        print(f"📁 Found existing global .eagle directory: {user_eagle_dir}")
+        action = input("What would you like to do? (fresh/cancel): ").strip().lower()
+        if action == "cancel":
+            print("Setup cancelled.")
+            return
+        elif action == "fresh":
+            import shutil
+            backup_dir = f"{user_eagle_dir}_backup_{int(time.time())}"
+            shutil.move(user_eagle_dir, backup_dir)
+            print(f"📦 Backed up existing config to: {backup_dir}")
+            print("🆕 Starting fresh installation")
+        else:
+            print("Invalid option. Use 'eagle update-tools' to update tools only.")
+            return
+    
     print("Let's configure your AI assistant...\n")
     
     # Load default config for fallback values
     fallback_config = get_default_config()
+    
+    # Use existing config as defaults if available
+    current_provider = existing_config.get("provider") if existing_config else fallback_config["provider"]
+    current_model = existing_config.get("model") if existing_config else fallback_config["model"]
+    current_rules = existing_config.get("rules") if existing_config else fallback_config["rules"]
+    current_tools = existing_config.get("tools") if existing_config else fallback_config["tools"]
     
     # Step 1: Choose Provider
     print("Step 1: Choose your AI provider")
@@ -27,22 +72,28 @@ def eagle_init(global_install: bool = False):
         models_preview = ", ".join(provider_config["models"][:3])
         if len(provider_config["models"]) > 3:
             models_preview += "..."
-        print(f"  {i}. {provider_config['name']} ({models_preview})")
+        current_marker = " (current)" if provider_id == current_provider else ""
+        print(f"  {i}. {provider_config['name']} ({models_preview}){current_marker}")
     
-    provider_choice = input(f"\nEnter your choice (1-{len(PROVIDERS)}) or provider name: ").strip().lower()
+    provider_input = input(f"\nEnter your choice (1-{len(PROVIDERS)}) or provider name (current: {current_provider}): ").strip()
     
-    # Build provider map dynamically
-    provider_map = {}
-    for i, provider_id in enumerate(PROVIDERS.keys(), 1):
-        provider_map[str(i)] = provider_id
-        provider_map[provider_id] = provider_id
-        # Add alternative names
-        if provider_id == "claude":
-            provider_map["anthropic"] = provider_id
-        elif provider_id == "gemini":
-            provider_map["google"] = provider_id
+    # Use current provider if input is empty
+    if not provider_input:
+        default_provider = current_provider
+    else:
+        # Build provider map dynamically
+        provider_map = {}
+        for i, provider_id in enumerate(PROVIDERS.keys(), 1):
+            provider_map[str(i)] = provider_id
+            provider_map[provider_id] = provider_id
+            # Add alternative names
+            if provider_id == "claude":
+                provider_map["anthropic"] = provider_id
+            elif provider_id == "gemini":
+                provider_map["google"] = provider_id
+        
+        default_provider = provider_map.get(provider_input.lower(), current_provider)
     
-    default_provider = provider_map.get(provider_choice, fallback_config["provider"])
     print(f"Selected provider: {default_provider}")
     
     # Step 2: Configure API Key
@@ -81,9 +132,10 @@ def eagle_init(global_install: bool = False):
     available_models = get_provider_models(default_provider)
     print("Available models:")
     for i, model in enumerate(available_models, 1):
-        print(f"  {i}. {model}")
+        current_marker = " (current)" if model == current_model else ""
+        print(f"  {i}. {model}{current_marker}")
     
-    model_choice = input(f"\nEnter choice (1-{len(available_models)}) or model name: ").strip()
+    model_input = input(f"\nEnter choice (1-{len(available_models)}) or model name (current: {current_model}): ").strip()
     
     try:
         if model_choice.isdigit():
@@ -103,25 +155,8 @@ def eagle_init(global_install: bool = False):
     
     print(f"Selected model: {default_model}")
     
-    # Step 4: Test Configuration
-    print(f"\nStep 4: Test configuration")
-    test_config = input("Do you want to test the configuration? (Y/n): ").strip().lower()
-    
-    if test_config not in ['n', 'no']:
-        try:
-            print("Testing connection...")
-            test_interpreter = EagleInterpreter(
-                provider=default_provider,
-                model_name=default_model,
-                config=fallback_config
-            )
-            print("✅ Configuration test successful!")
-        except Exception as e:
-            print(f"❌ Configuration test failed: {e}")
-            print("Please check your API key and try again.")
-    
-    # Step 5: Additional Options
-    print(f"\nStep 5: Additional options")
+    # Step 4: Additional Options
+    print(f"\nStep 4: Additional options")
     
     # Rules
     rules_input = input("Rules files (comma-separated, or Enter for default): ").strip()
@@ -137,16 +172,16 @@ def eagle_init(global_install: bool = False):
     else:
         tools_list = fallback_config["tools"]
     
-    # Step 6: Save Configuration
-    print(f"\nStep 6: Save configuration")
+    # Step 5: Save Configuration
+    print(f"\nStep 5: Save configuration")
     
     # Determine where to save
     if global_install:
         to_project = False
         print("Installing globally (to home directory)")
     else:
-        save_scope = input("Save config for this project only, or for all projects? (project/all): ").strip().lower()
-        to_project = save_scope != "all"
+        save_scope = input("Save config for this project only, or for all projects? (project/global): ").strip().lower()
+        to_project = save_scope != "global"
     
     # Create config
     config = {
@@ -230,3 +265,95 @@ def eagle_init(global_install: bool = False):
     print(f"Tools: {', '.join(tools_list) if tools_list else 'None'}")
     print(f"Config saved: {'Project' if to_project else 'Global'}")
     print("\nYou can now run: eagle run your_file.caw\n")
+
+
+def update_tools():
+    """Update default tools while preserving custom tools."""
+    print("\n🔧 Eagle Tools Update")
+    
+    # Find .eagle directories
+    project_eagle_dir = os.path.join(os.getcwd(), ".eagle")
+    user_eagle_dir = os.path.expanduser("~/.eagle")
+    
+    # Determine which directory to update
+    target_dirs = []
+    if os.path.exists(project_eagle_dir):
+        target_dirs.append(("Project", project_eagle_dir))
+    if os.path.exists(user_eagle_dir):
+        target_dirs.append(("Global", user_eagle_dir))
+    
+    if not target_dirs:
+        print("❌ No .eagle directories found. Run 'eagle init' first.")
+        return
+    
+    print("Found Eagle installations:")
+    for i, (scope, path) in enumerate(target_dirs, 1):
+        print(f"  {i}. {scope}: {path}")
+    
+    if len(target_dirs) == 1:
+        selected_dir = target_dirs[0][1]
+        scope = target_dirs[0][0]
+        print(f"Updating {scope.lower()} tools...")
+    else:
+        choice = input(f"\nSelect installation to update (1-{len(target_dirs)}) or 'all': ").strip().lower()
+        if choice == "all":
+            selected_dirs = [path for _, path in target_dirs]
+        else:
+            try:
+                idx = int(choice) - 1
+                if 0 <= idx < len(target_dirs):
+                    selected_dirs = [target_dirs[idx][1]]
+                    scope = target_dirs[idx][0]
+                else:
+                    print("❌ Invalid selection")
+                    return
+            except ValueError:
+                print("❌ Invalid selection")
+                return
+        
+        if choice != "all":
+            selected_dir = selected_dirs[0]
+            print(f"Updating {scope.lower()} tools...")
+        else:
+            print("Updating all Eagle installations...")
+    
+    # Get default tools directory
+    default_tools_dir = os.path.join(os.path.dirname(__file__), "default-config", "tools")
+    if not os.path.exists(default_tools_dir):
+        print("❌ Default tools directory not found")
+        return
+    
+    # Update tools for selected directories
+    dirs_to_update = selected_dirs if 'selected_dirs' in locals() else [selected_dir]
+    
+    for target_dir in dirs_to_update:
+        target_tools_dir = os.path.join(target_dir, "tools")
+        
+        if not os.path.exists(target_tools_dir):
+            print(f"⚠️  No tools directory found in {target_dir}")
+            continue
+        
+        # Get list of default tool names
+        default_tool_names = set()
+        if os.path.exists(default_tools_dir):
+            default_tool_names = {item for item in os.listdir(default_tools_dir) 
+                                 if os.path.isdir(os.path.join(default_tools_dir, item))}
+        
+        # Update only default tools, preserve custom ones
+        updated_count = 0
+        for tool_name in default_tool_names:
+            default_tool_path = os.path.join(default_tools_dir, tool_name)
+            target_tool_path = os.path.join(target_tools_dir, tool_name)
+            
+            try:
+                if os.path.exists(target_tool_path):
+                    shutil.rmtree(target_tool_path)
+                shutil.copytree(default_tool_path, target_tool_path)
+                updated_count += 1
+            except Exception as e:
+                print(f"⚠️  Could not update {tool_name}: {e}")
+        
+        print(f"✅ Updated {updated_count} default tools in {target_dir}")
+    
+    print("\n🎉 Tools update complete!")
+    print("Updated tools will be available on next Eagle run.")

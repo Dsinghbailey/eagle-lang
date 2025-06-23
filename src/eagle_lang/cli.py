@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from .tools.base import tool_registry
 from .config import load_config
 from .interpreter import EagleInterpreter
-from .init import eagle_init
+from .init import eagle_init, update_tools
 
 # Load environment variables from .env files in .eagle folders
 load_dotenv(os.path.join(os.getcwd(), ".eagle", ".env"))
@@ -32,7 +32,7 @@ def _initialize_tools():
     tool_registry.load_tools_from_directory(user_tools_dir)
 
 
-_initialize_tools()
+# Don't initialize tools at module level - do it when needed
 
 
 def start_interactive_mode():
@@ -43,6 +43,9 @@ def start_interactive_mode():
     print("=" * 60)
     
     try:
+        # Initialize tools
+        _initialize_tools()
+        
         # Load configuration
         config = load_config()
         provider = config.get("provider")
@@ -169,6 +172,9 @@ def main():
         help="Install configuration globally in home directory instead of current directory"
     )
     
+    # Update-tools subcommand
+    parser_update_tools = subparsers.add_parser("update-tools", help="Update default tools while preserving custom tools")
+    
     # Capabilities subcommand
     parser_capabilities = subparsers.add_parser("capabilities", help="Show current Eagle capabilities and workflows")
     parser_capabilities.add_argument(
@@ -183,7 +189,7 @@ def main():
         return
 
     # If no subcommand, treat as run (for backward compatibility)
-    if len(sys.argv) > 1 and sys.argv[1] not in ("run", "init", "capabilities"):
+    if len(sys.argv) > 1 and sys.argv[1] not in ("run", "init", "capabilities", "update-tools"):
         # Check if first arg is a .caw file or other run argument
         # Insert 'run' as the default subcommand
         sys.argv.insert(1, "run")
@@ -194,9 +200,16 @@ def main():
         eagle_init(global_install=getattr(args, 'global_install', False))
         return
     
+    if args.command == "update-tools":
+        update_tools()
+        return
+    
     if args.command == "capabilities":
         # Load config to get available tools
         try:
+            # Initialize tools
+            _initialize_tools()
+            
             config = load_config()
             tools_config = config.get("tools", {})
             
@@ -225,6 +238,9 @@ def main():
             print("❌ No Eagle configuration found. Run 'eagle init' first.")
         return
 
+    # Initialize tools for run command
+    _initialize_tools()
+    
     # Load config for run
     config = load_config()
     provider = args.provider or config.get("provider")

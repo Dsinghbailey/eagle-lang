@@ -292,11 +292,12 @@ You have access to the following tools:
     
     def _get_claude_response(self, content: str, max_tokens: int) -> str:
         """Get response from Claude with tool support."""
+        messages = [{"role": "user", "content": content}]
         kwargs = {
             "model": self.model_name,
             "max_tokens": max_tokens,
             "system": self.system_prompt,
-            "messages": [{"role": "user", "content": content}]
+            "messages": messages
         }
         
         if self.available_tools:
@@ -308,7 +309,9 @@ You have access to the following tools:
         if hasattr(response, 'content') and len(response.content) > 0:
             for content_block in response.content:
                 if content_block.type == "tool_use":
-                    return self._handle_anthropic_tool_calls([content_block])
+                    # Add assistant's response to messages first
+                    messages.append({"role": "assistant", "content": response.content})
+                    return self._handle_anthropic_tool_calls([content_block], messages)
                 elif content_block.type == "text":
                     return content_block.text
         
@@ -324,9 +327,21 @@ You have access to the following tools:
         return response.text
     
     def _handle_tool_calls(self, tool_calls, messages) -> str:
-        """Handle OpenAI/OpenRouter tool calls."""
-        results = []
+        """Handle OpenAI/OpenRouter tool calls with multi-turn support."""
+        # Add the assistant's tool call message to the conversation
+        messages.append({
+            "role": "assistant",
+            "tool_calls": [{
+                "id": tc.id,
+                "type": "function",
+                "function": {
+                    "name": tc.function.name,
+                    "arguments": tc.function.arguments
+                }
+            } for tc in tool_calls]
+        })
         
+        # Execute tools and add results to conversation
         for tool_call in tool_calls:
             tool_name = tool_call.function.name
             tool_args = json.loads(tool_call.function.arguments)
@@ -337,21 +352,47 @@ You have access to the following tools:
                     # Check if tool requires permission
                     if self._tool_requires_permission(tool_name):
                         if not self._get_user_permission(tool_name, tool_args):
-                            results.append(f"Tool '{tool_name}' execution denied by user")
-                            continue
-                    
-                    result = tool.execute(**tool_args)
-                    results.append(f"Tool '{tool_name}' executed: {result}")
+                            result = f"Tool '{tool_name}' execution denied by user"
+                        else:
+                            result = tool.execute(**tool_args)
+                    else:
+                        result = tool.execute(**tool_args)
                 except Exception as e:
-                    results.append(f"Tool '{tool_name}' failed: {str(e)}")
+                    result = f"Tool '{tool_name}' failed: {str(e)}"
             else:
-                results.append(f"Unknown tool: {tool_name}")
+                result = f"Unknown tool: {tool_name}"
+            
+            # Add tool result to conversation
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": str(result)
+            })
         
-        return "\n".join(results)
+        # Continue conversation with tool results
+        max_tokens = self.config.get("max_tokens", self.default_config["max_tokens"])
+        kwargs = {
+            "model": self.model_name,
+            "messages": messages,
+            "max_tokens": max_tokens,
+        }
+        
+        if self.available_tools:
+            kwargs["tools"] = tool_registry.get_openai_functions()
+            kwargs["tool_choice"] = "auto"
+        
+        response = self.client.chat.completions.create(**kwargs)
+        message = response.choices[0].message
+        
+        # Handle potential additional tool calls
+        if message.tool_calls:
+            return self._handle_tool_calls(message.tool_calls, messages)
+        
+        return message.content
     
-    def _handle_anthropic_tool_calls(self, tool_calls) -> str:
-        """Handle Anthropic tool calls."""
-        results = []
+    def _handle_anthropic_tool_calls(self, tool_calls, messages) -> str:
+        """Handle Anthropic tool calls with multi-turn support."""
+        tool_results = []
         
         for tool_call in tool_calls:
             tool_name = tool_call.name
@@ -363,17 +404,52 @@ You have access to the following tools:
                     # Check if tool requires permission
                     if self._tool_requires_permission(tool_name):
                         if not self._get_user_permission(tool_name, tool_args):
-                            results.append(f"Tool '{tool_name}' execution denied by user")
-                            continue
-                    
-                    result = tool.execute(**tool_args)
-                    results.append(f"Tool '{tool_name}' executed: {result}")
+                            result = f"Tool '{tool_name}' execution denied by user"
+                        else:
+                            result = tool.execute(**tool_args)
+                    else:
+                        result = tool.execute(**tool_args)
                 except Exception as e:
-                    results.append(f"Tool '{tool_name}' failed: {str(e)}")
+                    result = f"Tool '{tool_name}' failed: {str(e)}"
             else:
-                results.append(f"Unknown tool: {tool_name}")
+                result = f"Unknown tool: {tool_name}"
+            
+            # Prepare tool result for Claude format
+            tool_results.append({
+                "type": "tool_result",
+                "tool_use_id": tool_call.id,
+                "content": str(result)
+            })
         
-        return "\n".join(results)
+        # Add tool results to messages and continue conversation
+        messages.append({
+            "role": "user",
+            "content": tool_results
+        })
+        
+        # Continue conversation with tool results
+        max_tokens = self.config.get("max_tokens", self.default_config["max_tokens"])
+        kwargs = {
+            "model": self.model_name,
+            "max_tokens": max_tokens,
+            "system": self.system_prompt,
+            "messages": messages
+        }
+        
+        if self.available_tools:
+            kwargs["tools"] = tool_registry.get_anthropic_tools()
+        
+        response = self.client.messages.create(**kwargs)
+        
+        # Handle potential additional tool calls
+        if hasattr(response, 'content') and len(response.content) > 0:
+            for content_block in response.content:
+                if content_block.type == "tool_use":
+                    return self._handle_anthropic_tool_calls([content_block], messages)
+                elif content_block.type == "text":
+                    return content_block.text
+        
+        return response.content[0].text if response.content else ""
     
     def _tool_requires_permission(self, tool_name: str) -> bool:
         """Check if a tool requires user permission before execution."""

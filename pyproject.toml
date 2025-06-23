@@ -43,3 +43,13 @@ eagle = "eagle_lang.cli:main"
 [project.urls]
 "Homepage" = "https://github.com/eagle-lang/eagle-lang"
 "Bug Tracker" = "https://github.com/eagle-lang/eagle-lang/issues"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+eagle_lang = [
+    "default-config/*.json",
+    "default-config/*.md",
+    "default-config/tools/**/*"
+]

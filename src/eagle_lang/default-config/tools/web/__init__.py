@@ -3,8 +3,71 @@
 import urllib.request
 import urllib.parse
 import json
-from typing import Dict, Any
-from eagle_lang.tools.base import EagleTool
+import re
+from typing import Dict, Any, List, Optional
+from eagle_lang.tools.base import EagleTool, tool_registry
+
+try:
+    from html.parser import HTMLParser
+    import html
+    HTML_AVAILABLE = True
+except ImportError:
+    HTML_AVAILABLE = False
+
+
+class SimpleHTMLParser(HTMLParser):
+    """Simple HTML parser to extract useful content."""
+    
+    def __init__(self):
+        super().__init__()
+        self.text_content = []
+        self.links = []
+        self.titles = []
+        self.current_tag = None
+        self.in_script = False
+        self.in_style = False
+        
+    def handle_starttag(self, tag, attrs):
+        self.current_tag = tag
+        if tag in ['script', 'style']:
+            self.in_script = True
+            self.in_style = True
+        elif tag == 'a':
+            # Extract href from links
+            for attr_name, attr_value in attrs:
+                if attr_name == 'href' and attr_value:
+                    self.links.append(attr_value)
+        elif tag in ['h1', 'h2', 'h3', 'title']:
+            self.current_tag = f"{tag}_start"
+    
+    def handle_endtag(self, tag):
+        if tag in ['script', 'style']:
+            self.in_script = False
+            self.in_style = False
+        self.current_tag = None
+    
+    def handle_data(self, data):
+        if self.in_script or self.in_style:
+            return
+            
+        text = data.strip()
+        if text:
+            if self.current_tag and self.current_tag.endswith('_start'):
+                self.titles.append(text)
+            else:
+                self.text_content.append(text)
+    
+    def get_clean_text(self) -> str:
+        """Get clean text content."""
+        return '\n'.join(self.text_content)
+    
+    def get_titles(self) -> List[str]:
+        """Get all titles/headings."""
+        return self.titles
+    
+    def get_links(self) -> List[str]:
+        """Get all links."""
+        return self.links
 
 
 class WebTool(EagleTool):
@@ -27,8 +90,12 @@ class WebTool(EagleTool):
                     "type": "string",
                     "description": "The URL to fetch or make request to"
                 },
-                "method": {
+                "purpose": {
                     "type": "string",
+                    "description": "What you want to extract/find from the webpage (e.g., 'trending topics', 'product prices', 'contact information')"
+                },
+                "method": {
+                    "type": "string", 
                     "enum": ["GET", "POST", "PUT", "DELETE"],
                     "description": "HTTP method to use (default: GET)",
                     "default": "GET"
@@ -53,6 +120,11 @@ class WebTool(EagleTool):
                     "description": "Maximum content length to retrieve in bytes (default: 1MB)",
                     "default": 1048576,
                     "maximum": 10485760
+                },
+                "raw": {
+                    "type": "boolean",
+                    "description": "Return raw content without AI processing (default: false)",
+                    "default": False
                 }
             },
             "required": ["url"]
@@ -75,10 +147,187 @@ class WebTool(EagleTool):
             }
         }
     
-    def execute(self, url: str, method: str = "GET", headers: Dict[str, str] = None, 
-                data: str = None, timeout: int = 30, max_content_length: int = 1048576) -> str:
+    def execute(self, url: str, purpose: str = None, method: str = "GET", headers: Dict[str, str] = None, 
+                data: str = None, timeout: int = 30, max_content_length: int = 1048576, raw: bool = False) -> str:
         """Execute the web tool."""
-        return self._make_request(url, method, headers, data, timeout, max_content_length)
+        raw_content = self._make_request(url, method, headers, data, timeout, max_content_length)
+        
+        # If raw requested or no purpose given, return raw content
+        if raw or not purpose:
+            return raw_content
+        
+        # Try to parse and extract relevant information
+        return self._process_content(raw_content, purpose, url)
+    
+    def _process_content(self, raw_content: str, purpose: str, url: str) -> str:
+        """Process HTML content to extract relevant information."""
+        if not HTML_AVAILABLE:
+            return raw_content
+        
+        try:
+            # Extract the actual HTML content from the raw response
+            html_content = self._extract_html_from_response(raw_content)
+            if not html_content:
+                return raw_content
+            
+            # Parse HTML
+            parser = SimpleHTMLParser()
+            parser.feed(html_content)
+            
+            # Get structured data
+            clean_text = parser.get_clean_text()
+            titles = parser.get_titles()
+            links = parser.get_links()
+            
+            # Apply intelligent filtering based on purpose
+            filtered_content = self._filter_content_by_purpose(clean_text, titles, links, purpose)
+            
+            # Format results
+            result = f"🌐 Web Content from {url}\n"
+            result += f"📋 Purpose: {purpose}\n"
+            result += "=" * 50 + "\n"
+            result += filtered_content
+            
+            return result
+            
+        except Exception as e:
+            # Fallback to raw content if parsing fails
+            return f"⚠️ Could not parse content: {str(e)}\n\n{raw_content}"
+    
+    def _extract_html_from_response(self, raw_response: str) -> Optional[str]:
+        """Extract HTML content from the raw HTTP response."""
+        # Look for the content after the headers
+        separator = "\n" + "=" * 50 + "\n"
+        if separator in raw_response:
+            return raw_response.split(separator, 1)[1]
+        return None
+    
+    def _filter_content_by_purpose(self, text: str, titles: List[str], links: List[str], purpose: str) -> str:
+        """Filter content based on the stated purpose."""
+        purpose_lower = purpose.lower()
+        lines = text.split('\n')
+        
+        # Trending/trending topics
+        if 'trend' in purpose_lower:
+            relevant_lines = self._find_trending_content(lines, titles)
+            return self._format_trending_results(relevant_lines, titles)
+        
+        # Prices/pricing
+        elif 'price' in purpose_lower or 'cost' in purpose_lower:
+            relevant_lines = self._find_price_content(lines)
+            return '\n'.join(relevant_lines[:20])  # Limit to 20 lines
+        
+        # Contact information
+        elif 'contact' in purpose_lower:
+            relevant_lines = self._find_contact_content(lines)
+            return '\n'.join(relevant_lines[:15])
+        
+        # News/articles
+        elif 'news' in purpose_lower or 'article' in purpose_lower:
+            return self._format_news_content(lines, titles)
+        
+        # Default: return cleaned text with reasonable limits
+        else:
+            # Limit to most relevant content (first 30 lines of meaningful text)
+            filtered_lines = [line for line in lines if len(line.strip()) > 10][:30]
+            result = '\n'.join(filtered_lines)
+            
+            # Add titles if available
+            if titles:
+                result = "📰 Headlines/Titles:\n" + '\n'.join(f"• {title}" for title in titles[:10]) + "\n\n" + result
+            
+            return result
+    
+    def _find_trending_content(self, lines: List[str], titles: List[str]) -> List[str]:
+        """Find content related to trends."""
+        trend_keywords = ['trend', 'trending', 'popular', 'viral', 'hot', '#', '@', 'hashtag']
+        relevant_lines = []
+        
+        for line in lines:
+            line_lower = line.lower()
+            if any(keyword in line_lower for keyword in trend_keywords):
+                relevant_lines.append(line)
+            elif re.search(r'#\w+', line):  # Hashtags
+                relevant_lines.append(line)
+        
+        return relevant_lines[:25]  # Limit results
+    
+    def _format_trending_results(self, content_lines: List[str], titles: List[str]) -> str:
+        """Format trending content nicely."""
+        result = ""
+        
+        if titles:
+            result += "🔥 Trending Headlines:\n"
+            for title in titles[:8]:
+                result += f"• {title}\n"
+            result += "\n"
+        
+        if content_lines:
+            result += "📈 Trending Content:\n"
+            # Look for hashtags and clean formatting
+            hashtags = set(re.findall(r'#\w+', '\n'.join(content_lines)))
+            if hashtags:
+                result += f"🏷️ Hashtags: {', '.join(sorted(hashtags)[:10])}\n\n"
+            
+            for line in content_lines[:15]:
+                if line.strip():
+                    result += f"• {line.strip()}\n"
+        
+        return result if result else "No trending content found"
+    
+    def _find_price_content(self, lines: List[str]) -> List[str]:
+        """Find content related to prices."""
+        price_patterns = [r'\$\d+', r'€\d+', r'£\d+', r'\d+\.\d+', r'price', r'cost', r'fee']
+        relevant_lines = []
+        
+        for line in lines:
+            if any(re.search(pattern, line, re.IGNORECASE) for pattern in price_patterns):
+                relevant_lines.append(line)
+        
+        return relevant_lines
+    
+    def _find_contact_content(self, lines: List[str]) -> List[str]:
+        """Find content related to contact information."""
+        contact_keywords = ['email', 'phone', 'contact', 'address', '@', 'tel:', 'mailto:']
+        relevant_lines = []
+        
+        for line in lines:
+            line_lower = line.lower()
+            if any(keyword in line_lower for keyword in contact_keywords):
+                relevant_lines.append(line)
+        
+        return relevant_lines
+    
+    def _format_news_content(self, lines: List[str], titles: List[str]) -> str:
+        """Format news/article content."""
+        result = ""
+        
+        if titles:
+            result += "📰 Headlines:\n"
+            for title in titles[:5]:
+                result += f"• {title}\n"
+            result += "\n"
+        
+        # Get first few paragraphs of meaningful content
+        paragraphs = []
+        current_para = []
+        
+        for line in lines:
+            line = line.strip()
+            if len(line) > 20:  # Meaningful content
+                current_para.append(line)
+            elif current_para:
+                paragraphs.append(' '.join(current_para))
+                current_para = []
+        
+        if current_para:
+            paragraphs.append(' '.join(current_para))
+        
+        result += "📄 Content:\n"
+        for para in paragraphs[:3]:  # First 3 paragraphs
+            result += f"{para}\n\n"
+        
+        return result
     
     def _make_request(self, url: str, method: str, headers: Dict[str, str], 
                      data: str, timeout: int, max_content_length: int) -> str:

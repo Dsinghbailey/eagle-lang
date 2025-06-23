@@ -69,11 +69,13 @@ class CallEagleTool(EagleTool):
             if rules:
                 cmd.extend(['--rules', rules])
             
-            # Execute Eagle command
+            # Execute Eagle command with interactive stdin for permission prompts
             try:
                 result = subprocess.run(
                     cmd,
-                    capture_output=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    stdin=None,  # Inherit stdin to allow interactive prompts
                     text=True,
                     timeout=300,  # 5 minute timeout
                     encoding='utf-8'
