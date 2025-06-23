@@ -2,14 +2,16 @@
 
 **Write software in plain English.**
 
-Eagle is an AI programming language where you write instructions in natural language instead of code. Write `.caw` files with plain English, and Eagle's AI interprets and executes them using a comprehensive and customizable set of tools. Rather than generating code for you to run, Eagle directly executes your intent. Eagle can edit itself.
+Eagle is an AI programming language where you write instructions in natural language instead of code. Write `.caw` files with plain English, and Eagle's AI interprets and executes them using a comprehensive and customizable set of tools. Rather than generating code for you to run, Eagle directly executes your intent. Eagle can edit itself, call itself, and write it's own caw files.
 
 ## What Makes Eagle Different
 
 - **🗣️ Natural Language Programming**: Write instructions in plain English instead of learning syntax
+- **🗣️ Multi-step Orchestrator**: The Eagle interpretor is a multistep tool calling ai orchestrator
 - **🚀 Multi-Provider AI**: Works with OpenAI, Claude, Gemini, or OpenRouter
 - **🔄 Self-Modifying Architecture**: Eagle can create tools for itself, modify its own configuration, and generate new behavior rules
-- **⚙️ Zero-Config Tool Sharing**: Tools are self-contained folders that work across projects and teams
+- **⚙️ Easy tool creation**: Tools are python scripts that are easy to spin up. Need memory, access to email, or google drive? ask eagle to make a tool.
+- **⚙️ Zero-Config Tool Sharing**: Tools are self-contained that work across projects and teams
 - **🔗 Workflow Composition**: Eagle understands how tools work together and suggests intelligent multi-step workflows
 - **🔄 Recursive Intelligence**: Eagle can call itself to break down complex tasks, delegate subtasks, and coordinate multi-step solutions
 - **💬 Interactive REPL**: Type commands directly in natural language for immediate execution and feedback
@@ -35,6 +37,7 @@ eagle
 ```
 
 Then type commands directly:
+
 ```
 eagle> create a python script that sorts a list of numbers
 eagle> test it with the numbers [3, 1, 4, 1, 5, 9]
@@ -44,11 +47,13 @@ eagle> save the script as sort_demo.py
 ### Option 2: Script Files
 
 1. **Initialize Eagle** in your project:
+
 ```bash
 eagle init
 ```
 
 2. **Create a `.caw` file** with your instructions:
+
 ```
 # my_task.caw
 Help me write 3 tweets about the launch of a new AI programming language called Eagle.
@@ -56,6 +61,7 @@ Focus on its ability to use plain English and be higher-level than Python.
 ```
 
 3. **Run Eagle**:
+
 ```bash
 eagle my_task.caw
 ```
@@ -158,9 +164,10 @@ Goodbye! 🦅
 ```
 
 **Interactive Commands:**
+
 - `.exit` / `.quit` - Exit Eagle
 - `.help` - Show available commands
-- `.config` - Show current configuration  
+- `.config` - Show current configuration
 - `.capabilities` - Show available tools and workflows
 
 ### Command Options
@@ -340,11 +347,13 @@ MIT License - see LICENSE file for details.
 Building the Eagle ecosystem:
 
 ### ✅ Core Platform
+
 - Interactive REPL and .caw file execution
 - Self-modifying architecture with AI-generated tools
 - Multi-provider AI support and project-aware configuration
 
 ### 🚧 Next Steps
+
 - **Eagle Website** - Official documentation and community hub
 - **Downloadable Releases** - Standalone installers for all platforms
 - **Package Manager** - `eagle install <tool/config/rule>` for sharing components
@@ -352,6 +361,7 @@ Building the Eagle ecosystem:
 - **Community Registry** - Discover and share tools, configs, and rules
 
 ### 💭 Future
+
 - Cloud execution and team collaboration features
 - Advanced debugging and workflow visualization
 - Integration with popular development tools
