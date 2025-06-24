@@ -35,6 +35,21 @@ dependencies = [
     "python-dotenv",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0", 
+    "pytest-mock>=3.10.0",
+    "black>=22.0.0",
+    "flake8>=5.0.0",
+    "mypy>=1.0.0",
+]
+
 [project.scripts]
 # This is the "magic" that creates the 'eagle' command
 # Format: <command_name> = "<python_package_name>.<module_name_without_py>:function_name"
@@ -49,7 +64,7 @@ include-package-data = true
 
 [tool.setuptools.package-data]
 eagle_lang = [
-    "default-config/*.json",
-    "default-config/*.md",
-    "default-config/tools/**/*"
+    "default_config/*.json",
+    "default_config/*.md",
+    "default_config/tools/**/*"
 ]

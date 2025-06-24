@@ -14,5 +14,6 @@
       "make_tool"
     ]
   },
-  "max_tokens": 4000
+  "max_tokens": 4000,
+  "verbose": true
 }

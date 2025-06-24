@@ -15,12 +15,14 @@ from .providers import get_provider_config
 class EagleInterpreter:
     """The core Eagle interpreter that handles AI provider interactions."""
     
-    def __init__(self, provider: str = None, model_name: str = None, rules: list = None, config: dict = None):
+    def __init__(self, provider: str = None, model_name: str = None, rules: list = None, config: dict = None, verbose: bool = None, additional_context: list = None):
         self.default_config = get_default_config()
         self.config = config or self.default_config
         self.provider = provider or self.config.get("provider", self.default_config["provider"])
         self.model_name = model_name or self.config.get("model", self.default_config["model"])
         self.rules = rules or self.config.get("rules", self.default_config["rules"])
+        self.verbose = verbose if verbose is not None else self.config.get("verbose", self.default_config.get("verbose", False))
+        self.additional_context = additional_context or []
         
         # Initialize tools first
         self.tools_enabled = self.config.get("tools")
@@ -35,7 +37,13 @@ class EagleInterpreter:
         
         self.client = self._initialize_client()
         tools_info = f" with {len(self.available_tools)} tools" if self.available_tools else ""
-        print(f"Eagle initialized with {self.assistant_name} using {self.provider}:{self.model_name}{tools_info}")
+        if self.verbose:
+            print(f"🔧 Eagle initialized with {self.assistant_name} using {self.provider}:{self.model_name}{tools_info}")
+            if self.available_tools:
+                print(f"📋 Available tools: {', '.join(self.available_tools)}")
+        else:
+            print(f"Eagle initialized with {self.assistant_name} using {self.provider}:{self.model_name}{tools_info}")
+    
     
     def _load_rules(self) -> str:
         """Load rules from markdown files."""
@@ -231,6 +239,27 @@ You have access to the following tools:
             print(f"Error reading .caw file {file_path}: {e}")
             exit(1)
 
+    def _enhance_content_with_context(self, content: str) -> str:
+        """Enhance the .caw file content with additional context."""
+        if not self.additional_context:
+            return content
+            
+        enhanced_parts = [content]
+        
+        # Add additional context section
+        context_section = "\n\n## Additional Context\n"
+        for context_item in self.additional_context:
+            if '=' in context_item:
+                # Key-value format
+                key, value = context_item.split('=', 1)
+                context_section += f"- {key.strip()}: {value.strip()}\n"
+            else:
+                # Plain text context
+                context_section += f"- {context_item}\n"
+        enhanced_parts.append(context_section)
+        
+        return "".join(enhanced_parts)
+
     def execute_caw_file(self, caw_file_path: str) -> None:
         """Execute a .caw file by sending its content to the LLM."""
         caw_content = self._read_caw_file(caw_file_path)
@@ -239,10 +268,21 @@ You have access to the following tools:
             print("The .caw file is empty or contains only whitespace. No instructions for Eagle.")
             return
 
-        print("\n--- Eagle is thinking... ---\n")
+        # Inject additional context and variables
+        enhanced_content = self._enhance_content_with_context(caw_content)
+
+        if self.verbose:
+            print("🧠 Processing your request...")
+            print(f"📝 Content length: {len(enhanced_content)} characters")
+            if self.additional_context:
+                print("📋 Additional context injected")
+        else:
+            print("\n--- Eagle is thinking... ---\n")
 
         try:
-            llm_response = self._get_llm_response(caw_content)
+            llm_response = self._get_llm_response(enhanced_content)
+            if self.verbose:
+                print("✅ Response received from AI")
             print(f"\n--- {self.assistant_name}'s Response ---\n")
             print(llm_response)
             print("\n" + "-" * (len(self.assistant_name) + 15) + "\n")
@@ -250,25 +290,33 @@ You have access to the following tools:
             print(f"An unexpected error occurred during LLM communication: {e}")
             exit(1)
     
-    def _get_llm_response(self, content: str) -> str:
+    def _get_llm_response(self, content: str, session_history: list = None) -> str:
         """Get response from the configured LLM provider."""
         max_tokens = self.config.get("max_tokens", self.default_config["max_tokens"])
         
+        if self.verbose:
+            print(f"🌐 Sending request to {self.provider}...")
+        
         if self.provider in ["openai", "openrouter"]:
-            return self._get_openai_response(content, max_tokens)
+            return self._get_openai_response(content, max_tokens, session_history)
         elif self.provider == "claude":
-            return self._get_claude_response(content, max_tokens)
+            return self._get_claude_response(content, max_tokens, session_history)
         elif self.provider == "gemini":
-            return self._get_gemini_response(content, max_tokens)
+            return self._get_gemini_response(content, max_tokens, session_history)
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
     
-    def _get_openai_response(self, content: str, max_tokens: int) -> str:
+    def _get_openai_response(self, content: str, max_tokens: int, session_history: list = None) -> str:
         """Get response from OpenAI/OpenRouter with tool support."""
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": content},
-        ]
+        messages = [{"role": "system", "content": self.system_prompt}]
+        
+        # Add session history if available
+        if session_history:
+            # Add recent history (excluding current user input to avoid duplication)
+            messages.extend(session_history[:-1])
+        
+        # Add current user message
+        messages.append({"role": "user", "content": content})
         
         # Add tools if available
         kwargs = {
@@ -281,18 +329,31 @@ You have access to the following tools:
             kwargs["tools"] = tool_registry.get_openai_functions()
             kwargs["tool_choice"] = "auto"
         
+        if self.verbose:
+            print("⏳ Awaiting response from AI...")
+        
         response = self.client.chat.completions.create(**kwargs)
         message = response.choices[0].message
         
         # Handle tool calls
         if message.tool_calls:
+            if self.verbose:
+                print(f"🔧 AI requested {len(message.tool_calls)} tool execution(s)")
             return self._handle_tool_calls(message.tool_calls, messages)
         
         return message.content
     
-    def _get_claude_response(self, content: str, max_tokens: int) -> str:
+    def _get_claude_response(self, content: str, max_tokens: int, session_history: list = None) -> str:
         """Get response from Claude with tool support."""
-        messages = [{"role": "user", "content": content}]
+        messages = []
+        
+        # Add session history if available
+        if session_history:
+            # Add recent history (excluding current user input to avoid duplication)
+            messages.extend(session_history[:-1])
+        
+        # Add current user message
+        messages.append({"role": "user", "content": content})
         kwargs = {
             "model": self.model_name,
             "max_tokens": max_tokens,
@@ -303,12 +364,17 @@ You have access to the following tools:
         if self.available_tools:
             kwargs["tools"] = tool_registry.get_anthropic_tools()
         
+        if self.verbose:
+            print("⏳ Awaiting response from AI...")
+        
         response = self.client.messages.create(**kwargs)
         
         # Handle tool calls
         if hasattr(response, 'content') and len(response.content) > 0:
             for content_block in response.content:
                 if content_block.type == "tool_use":
+                    if self.verbose:
+                        print("🔧 AI requested tool execution")
                     # Add assistant's response to messages first
                     messages.append({"role": "assistant", "content": response.content})
                     return self._handle_anthropic_tool_calls([content_block], messages)
@@ -317,9 +383,18 @@ You have access to the following tools:
         
         return response.content[0].text if response.content else ""
     
-    def _get_gemini_response(self, content: str, max_tokens: int) -> str:
+    def _get_gemini_response(self, content: str, max_tokens: int, session_history: list = None) -> str:
         """Get response from Gemini (basic implementation without tool support for now)."""
-        full_prompt = f"{self.system_prompt}\n\nUser: {content}"
+        # Build full prompt with session history
+        full_prompt = self.system_prompt
+        
+        if session_history:
+            full_prompt += "\n\nConversation History:\n"
+            for msg in session_history[:-1]:  # Exclude current user input
+                role = "User" if msg["role"] == "user" else "Assistant"
+                full_prompt += f"{role}: {msg['content']}\n"
+        
+        full_prompt += f"\n\nUser: {content}"
         response = self.client.generate_content(
             full_prompt,
             generation_config=genai.types.GenerationConfig(max_output_tokens=max_tokens)
@@ -346,6 +421,10 @@ You have access to the following tools:
             tool_name = tool_call.function.name
             tool_args = json.loads(tool_call.function.arguments)
             
+            if self.verbose:
+                print(f"🔧 Executing tool: {tool_name}")
+                print(f"📋 Arguments: {tool_args}")
+            
             tool = tool_registry.get(tool_name)
             if tool:
                 try:
@@ -353,14 +432,24 @@ You have access to the following tools:
                     if self._tool_requires_permission(tool_name):
                         if not self._get_user_permission(tool_name, tool_args):
                             result = f"Tool '{tool_name}' execution denied by user"
+                            if self.verbose:
+                                print(f"❌ Tool execution denied: {tool_name}")
                         else:
                             result = tool.execute(**tool_args)
+                            if self.verbose:
+                                print(f"✅ Tool completed: {tool_name}")
                     else:
                         result = tool.execute(**tool_args)
+                        if self.verbose:
+                            print(f"✅ Tool completed: {tool_name}")
                 except Exception as e:
                     result = f"Tool '{tool_name}' failed: {str(e)}"
+                    if self.verbose:
+                        print(f"❌ Tool failed: {tool_name} - {str(e)}")
             else:
                 result = f"Unknown tool: {tool_name}"
+                if self.verbose:
+                    print(f"❓ Unknown tool requested: {tool_name}")
             
             # Add tool result to conversation
             messages.append({
@@ -370,6 +459,9 @@ You have access to the following tools:
             })
         
         # Continue conversation with tool results
+        if self.verbose:
+            print("🧠 Processing tool results...")
+            
         max_tokens = self.config.get("max_tokens", self.default_config["max_tokens"])
         kwargs = {
             "model": self.model_name,
@@ -398,6 +490,10 @@ You have access to the following tools:
             tool_name = tool_call.name
             tool_args = tool_call.input
             
+            if self.verbose:
+                print(f"🔧 Executing tool: {tool_name}")
+                print(f"📋 Arguments: {tool_args}")
+            
             tool = tool_registry.get(tool_name)
             if tool:
                 try:
@@ -405,14 +501,24 @@ You have access to the following tools:
                     if self._tool_requires_permission(tool_name):
                         if not self._get_user_permission(tool_name, tool_args):
                             result = f"Tool '{tool_name}' execution denied by user"
+                            if self.verbose:
+                                print(f"❌ Tool execution denied: {tool_name}")
                         else:
                             result = tool.execute(**tool_args)
+                            if self.verbose:
+                                print(f"✅ Tool completed: {tool_name}")
                     else:
                         result = tool.execute(**tool_args)
+                        if self.verbose:
+                            print(f"✅ Tool completed: {tool_name}")
                 except Exception as e:
                     result = f"Tool '{tool_name}' failed: {str(e)}"
+                    if self.verbose:
+                        print(f"❌ Tool failed: {tool_name} - {str(e)}")
             else:
                 result = f"Unknown tool: {tool_name}"
+                if self.verbose:
+                    print(f"❓ Unknown tool requested: {tool_name}")
             
             # Prepare tool result for Claude format
             tool_results.append({
@@ -428,6 +534,9 @@ You have access to the following tools:
         })
         
         # Continue conversation with tool results
+        if self.verbose:
+            print("🧠 Processing tool results...")
+            
         max_tokens = self.config.get("max_tokens", self.default_config["max_tokens"])
         kwargs = {
             "model": self.model_name,

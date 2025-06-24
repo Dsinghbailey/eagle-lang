@@ -1,13 +1,13 @@
-# Eagle - An AI Programming Language
+# Eagle: The natural language platform for orchestrating custom, evolving AI agents
 
-**Write software in plain English.**
+**Natural language platform with advanced scripting capabilities**
 
-Eagle is an AI programming language where you write instructions in natural language instead of code. Write `.caw` files with plain English, and Eagle's AI interprets and executes them using a comprehensive and customizable set of tools. Rather than generating code for you to run, Eagle directly executes your intent. Eagle can edit itself, call itself, and write it's own caw files.
+Eagle is a natural language platform where you write instructions in plain English instead of code. Write `.caw` files with plain English, and Eagle's AI interprets and executes them using a comprehensive and customizable set of tools. Rather than generating code for you to run, Eagle directly executes your intent. Eagle can edit itself, call itself, and write its own caw files.
 
 ## What Makes Eagle Different
 
-- **🗣️ Natural Language Programming**: Write instructions in plain English instead of learning syntax
-- **🗣️ Multi-step Orchestrator**: The Eagle interpretor is a multistep tool calling ai orchestrator
+- **🗣️ Natural Language Interface**: Write instructions in plain English instead of learning syntax
+- **🗣️ Multi-step Orchestrator**: The Eagle interpreter is a multistep tool calling AI orchestrator
 - **🚀 Multi-Provider AI**: Works with OpenAI, Claude, Gemini, or OpenRouter
 - **🔄 Self-Modifying Architecture**: Eagle can create tools for itself, modify its own configuration, and generate new behavior rules
 - **⚙️ Easy tool creation**: Tools are python scripts that are easy to spin up. Need memory, access to email, or google drive? ask eagle to make a tool.
@@ -37,8 +37,8 @@ eagle init
 
 ```
 # my_task.caw
-Help me write 3 tweets about the launch of a new AI programming language called Eagle.
-Focus on its ability to use plain English and be higher-level than Python. Use my_tone.txt to define my tone.
+Help me write 3 tweets about the launch of a new natural language platform called Eagle.
+Focus on its ability to use plain English and orchestrate AI agents. Use my_tone.txt to define my tone.
 ```
 
 ### Option 2: Interactive Mode
@@ -374,14 +374,15 @@ Eagle is in active development. Contributions, feedback, and bug reports are wel
 
 ## The Vision
 
-Eagle represents a new approach to programming where natural language becomes the primary interface for software development. Instead of learning syntax and frameworks, you describe what you want to accomplish.
+Eagle represents a new approach to AI orchestration where natural language becomes the primary interface for automation and intelligent task execution. Instead of learning syntax and frameworks, you describe what you want to accomplish.
 
 **Eagle enables:**
 
 - **Faster iteration** - Express ideas directly without translation to code syntax
-- **Lower barriers** - Programming accessible to anyone who can clearly explain a problem
+- **Lower barriers** - AI orchestration accessible to anyone who can clearly explain a problem
 - **Direct execution** - Your intent becomes reality without intermediate code generation
-- **True AI collaboration** - Not autocomplete or suggestions, but AI that understands and acts
+- **True AI collaboration** - Not autocomplete or suggestions, but AI agents that understand and act
+- **Evolving capabilities** - Create custom tools and agents that grow with your needs
 
 This is a step toward a future where the gap between human intent and computer execution continues to shrink.
 

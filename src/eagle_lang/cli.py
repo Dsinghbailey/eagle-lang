@@ -17,8 +17,8 @@ load_dotenv(os.path.expanduser("~/.eagle/.env"))
 # Initialize tools
 def _initialize_tools():
     """Initialize and register all available tools."""
-    # Load built-in tools from default-config/tools
-    default_tools_dir = os.path.join(os.path.dirname(__file__), "default-config", "tools")
+    # Load built-in tools from default_config/tools
+    default_tools_dir = os.path.join(os.path.dirname(__file__), "default_config", "tools")
     tool_registry.load_tools_from_directory(default_tools_dir)
     
     # Load custom tools from .eagle/tools/ folders
@@ -39,7 +39,7 @@ def start_interactive_mode():
     """Start Eagle's interactive REPL mode."""
     print("🦅 Eagle Interactive Mode")
     print("Type your instructions in plain English and press Enter.")
-    print("Commands: .exit (quit), .help (show help), .config (show config)")
+    print("Commands: .exit (quit), .help (show help), .config (show config), .memory (show session)")
     print("=" * 60)
     
     try:
@@ -56,6 +56,10 @@ def start_interactive_mode():
         interpreter = EagleInterpreter(
             provider=provider, model_name=model, rules=rules, config=config
         )
+        
+        # Initialize session memory
+        session_history = []
+        session_context = {}
         
         print(f"Ready! Using {provider}:{model}")
         print()
@@ -78,6 +82,9 @@ def start_interactive_mode():
                     print("  .help        - Show this help")
                     print("  .config      - Show current configuration")
                     print("  .capabilities - Show available tools and workflows")
+                    print("  .memory      - Show session history and context")
+                    print("  .forget      - Clear session memory")
+                    print("  .save-session - Save current session to file")
                     print("  Or just type any instruction in plain English!")
                     continue
                 elif user_input == ".config":
@@ -105,12 +112,61 @@ def start_interactive_mode():
                     summary = tool_registry.get_user_capabilities_summary(available_tools)
                     print(summary)
                     continue
+                elif user_input == ".memory":
+                    print(f"Session History ({len(session_history)} messages):")
+                    if not session_history:
+                        print("  No conversation history yet.")
+                    else:
+                        for i, msg in enumerate(session_history[-10:]):  # Show last 10 messages
+                            role = "You" if msg["role"] == "user" else "Eagle"
+                            content = msg["content"][:100] + "..." if len(msg["content"]) > 100 else msg["content"]
+                            print(f"  {i+1}. {role}: {content}")
+                    
+                    print(f"\nSession Context ({len(session_context)} items):")
+                    if not session_context:
+                        print("  No stored context yet.")
+                    else:
+                        for key, value in session_context.items():
+                            print(f"  {key}: {str(value)[:100]}...")
+                    continue
+                elif user_input == ".forget":
+                    session_history.clear()
+                    session_context.clear()
+                    print("Session memory cleared.")
+                    continue
+                elif user_input == ".save-session":
+                    import json
+                    from datetime import datetime
+                    
+                    session_data = {
+                        "timestamp": datetime.now().isoformat(),
+                        "history": session_history,
+                        "context": session_context
+                    }
+                    
+                    filename = f"eagle_session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                    with open(filename, 'w') as f:
+                        json.dump(session_data, f, indent=2)
+                    print(f"Session saved to {filename}")
+                    continue
                 
                 # Execute the instruction
                 print("\n--- Eagle is thinking... ---")
                 try:
-                    response = interpreter._get_llm_response(user_input)
+                    # Add user input to session history
+                    session_history.append({"role": "user", "content": user_input})
+                    
+                    # Get response with session history
+                    response = interpreter._get_llm_response(user_input, session_history=session_history)
                     print(f"\n{response}")
+                    
+                    # Add response to session history
+                    session_history.append({"role": "assistant", "content": response})
+                    
+                    # Limit history to prevent memory overflow (keep last 50 messages)
+                    if len(session_history) > 50:
+                        session_history = session_history[-50:]
+                        
                 except Exception as e:
                     print(f"\n❌ Error: {e}")
                 
@@ -134,13 +190,13 @@ def main():
     """
     parser = argparse.ArgumentParser(
         prog="eagle",  # Set the program name for help messages
-        description="Eagle: An Agentic Language Platform operating at a higher level than Python.",
+        description="Eagle: The natural language platform for orchestrating custom, evolving AI agents.",
         formatter_class=argparse.RawTextHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest="command", help="Eagle subcommands")
 
     # Default/run command (no subcommand)
-    parser_run = subparsers.add_parser("run", help="Run a .caw file (default)")
+    parser_run = subparsers.add_parser("run", help="Run a .caw file with optional context")
     parser_run.add_argument(
         "caw_file",
         help="Path to the .caw file containing plain English instructions for Eagle.",
@@ -161,6 +217,16 @@ def main():
         nargs="+",
         default=None,
         help="Specify the rules files to use (space-separated list).",
+    )
+    parser_run.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Enable verbose output showing tool execution and progress details.",
+    )
+    parser_run.add_argument(
+        "--context", "-c",
+        action="append",
+        help="Add additional context information (can be used multiple times). Format: --context 'key=value' or --context 'information'",
     )
 
     # Init subcommand
@@ -247,8 +313,13 @@ def main():
     model = args.model or config.get("model")
     rules = args.rules or config.get("rules")
 
+    # Parse additional context
+    additional_context = getattr(args, 'context', []) or []
+    
     interpreter = EagleInterpreter(
-        provider=provider, model_name=model, rules=rules, config=config
+        provider=provider, model_name=model, rules=rules, config=config, 
+        verbose=getattr(args, 'verbose', False),
+        additional_context=additional_context
     )
     interpreter.execute_caw_file(args.caw_file)
 

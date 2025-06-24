@@ -14,12 +14,12 @@ USER_CONFIG_PATH = os.path.join(USER_EAGLE_DIR, CONFIG_FILENAME)
 
 
 def get_default_config() -> Dict[str, Any]:
-    """Get the default configuration values from default-config folder."""
+    """Get the default configuration values from default_config folder."""
     # Path to default config file in the package
-    default_config_dir = os.path.join(os.path.dirname(__file__), "default-config")
+    default_config_dir = os.path.join(os.path.dirname(__file__), "default_config")
     default_config_path = os.path.join(default_config_dir, CONFIG_FILENAME)
     
-    # Load from default-config folder (should always exist)
+    # Load from default_config folder (should always exist)
     with open(default_config_path, "r", encoding="utf-8") as f:
         return json.load(f)
 

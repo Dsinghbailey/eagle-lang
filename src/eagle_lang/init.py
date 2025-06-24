@@ -195,7 +195,7 @@ def eagle_init(global_install: bool = False):
     save_config(config, to_project=to_project)
     
     # Copy default files to .eagle folder
-    default_config_dir = os.path.join(os.path.dirname(__file__), "default-config")
+    default_config_dir = os.path.join(os.path.dirname(__file__), "default_config")
     default_rules_path = os.path.join(default_config_dir, "eagle_rules.md")
     default_tools_dir = os.path.join(default_config_dir, "tools")
     
@@ -318,7 +318,7 @@ def update_tools():
             print("Updating all Eagle installations...")
     
     # Get default tools directory
-    default_tools_dir = os.path.join(os.path.dirname(__file__), "default-config", "tools")
+    default_tools_dir = os.path.join(os.path.dirname(__file__), "default_config", "tools")
     if not os.path.exists(default_tools_dir):
         print("❌ Default tools directory not found")
         return
