@@ -1,19 +1,24 @@
 {
-  "provider": "openai",
-  "model": "gpt-4o",
-  "rules": ["eagle_rules.md"],
-  "tools": {
-    "allowed": ["print", "read", "search", "ask_permission"],
-    "require_permission": [
-      "write",
-      "ask_permission",
-      "shell",
-      "web",
-      "git",
-      "call_eagle",
-      "make_tool"
-    ]
-  },
-  "max_tokens": 4000,
-  "verbose": true
+  "verbose": true,
+  "agents": [
+    {
+      "name": "default",
+      "provider": "openai",
+      "model": "gpt-4o",
+      "rules": ["eagle_rules.md"],
+      "tools": {
+        "allowed": ["print", "read", "search", "ask_permission"],
+        "require_permission": [
+          "write",
+          "ask_permission",
+          "shell",
+          "web",
+          "git",
+          "call_agent",
+          "make_tool"
+        ]
+      },
+      "max_tokens": 4000
+    }
+  ]
 }

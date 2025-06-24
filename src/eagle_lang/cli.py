@@ -224,6 +224,11 @@ def main():
         help="Enable verbose output showing tool execution and progress details.",
     )
     parser_run.add_argument(
+        "--agent", "-a",
+        default=None,
+        help="Specify the agent name to use (defaults to first agent in config).",
+    )
+    parser_run.add_argument(
         "--context", "-c",
         action="append",
         help="Add additional context information (can be used multiple times). Format: --context 'key=value' or --context 'information'",
@@ -308,7 +313,7 @@ def main():
     _initialize_tools()
     
     # Load config for run
-    config = load_config()
+    config = load_config(args.agent)
     provider = args.provider or config.get("provider")
     model = args.model or config.get("model")
     rules = args.rules or config.get("rules")

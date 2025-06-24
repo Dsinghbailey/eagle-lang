@@ -137,21 +137,25 @@ def eagle_init(global_install: bool = False):
     
     model_input = input(f"\nEnter choice (1-{len(available_models)}) or model name (current: {current_model}): ").strip()
     
-    try:
-        if model_choice.isdigit():
-            model_idx = int(model_choice) - 1
-            if 0 <= model_idx < len(available_models):
-                default_model = available_models[model_idx]
+    # Use current model if input is empty
+    if not model_input:
+        default_model = current_model
+    else:
+        try:
+            if model_input.isdigit():
+                model_idx = int(model_input) - 1
+                if 0 <= model_idx < len(available_models):
+                    default_model = available_models[model_idx]
+                else:
+                    default_model = available_models[0]
             else:
-                default_model = available_models[0]
-        else:
-            # Check if it's a valid model name
-            if model_choice in available_models:
-                default_model = model_choice
-            else:
-                default_model = available_models[0]
-    except:
-        default_model = available_models[0]
+                # Check if it's a valid model name
+                if model_input in available_models:
+                    default_model = model_input
+                else:
+                    default_model = available_models[0]
+        except:
+            default_model = available_models[0]
     
     print(f"Selected model: {default_model}")
     
@@ -183,12 +187,19 @@ def eagle_init(global_install: bool = False):
         save_scope = input("Save config for this project only, or for all projects? (project/global): ").strip().lower()
         to_project = save_scope != "global"
     
-    # Create config
+    # Create config in new multi-agent format
     config = {
-        "provider": default_provider,
-        "model": default_model,
-        "rules": rules_list,
-        "tools": tools_list
+        "verbose": True,
+        "agents": [
+            {
+                "name": "default",
+                "provider": default_provider,
+                "model": default_model,
+                "rules": rules_list,
+                "tools": tools_list,
+                "max_tokens": 4000
+            }
+        ]
     }
     
     # Save config file

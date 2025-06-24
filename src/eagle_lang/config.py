@@ -24,24 +24,40 @@ def get_default_config() -> Dict[str, Any]:
         return json.load(f)
 
 
-def load_config() -> Dict[str, Any]:
+def load_config(agent_name: str = None) -> Dict[str, Any]:
     """Load config from .eagle folder in project directory, user home directory, or defaults."""
     # Check project config first, then user config, then use defaults
     if os.path.exists(PROJECT_CONFIG_PATH):
         with open(PROJECT_CONFIG_PATH, "r", encoding="utf-8") as f:
             config = json.load(f)
         print(f"Loaded Eagle config from project: {PROJECT_CONFIG_PATH}")
-        return config
     elif os.path.exists(USER_CONFIG_PATH):
         with open(USER_CONFIG_PATH, "r", encoding="utf-8") as f:
             config = json.load(f)
         print(f"Loaded Eagle config from user home: {USER_CONFIG_PATH}")
-        return config
     else:
         # Use default configuration
         config = get_default_config()
         print("Using default Eagle configuration (no .eagle folder found)")
-        return config
+    
+    # Handle multi-agent configuration
+    if agent_name:
+        # Find the specified agent
+        for agent in config["agents"]:
+            if agent["name"] == agent_name:
+                # Merge agent config with top-level config
+                agent_config = agent.copy()
+                agent_config["verbose"] = config.get("verbose", True)
+                return agent_config
+        raise ValueError(f"Agent '{agent_name}' not found in configuration")
+    else:
+        # Use the first agent as default
+        if config["agents"]:
+            agent_config = config["agents"][0].copy()
+            agent_config["verbose"] = config.get("verbose", True)
+            return agent_config
+        else:
+            raise ValueError("No agents defined in configuration")
 
 
 def save_config(config: Dict[str, Any], to_project: bool = True) -> None:

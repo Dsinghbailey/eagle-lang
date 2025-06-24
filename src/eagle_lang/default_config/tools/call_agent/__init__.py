@@ -1,4 +1,4 @@
-"""Call Eagle tool - allows Eagle to recursively call itself with new instructions."""
+"""Call Agent tool - allows delegating subtasks to specialized agents."""
 
 import os
 import tempfile
@@ -7,16 +7,16 @@ from typing import Dict, Any
 from eagle_lang.tools.base import EagleTool
 
 
-class CallEagleTool(EagleTool):
-    """Tool for making recursive calls to Eagle with new instructions."""
+class CallAgentTool(EagleTool):
+    """Tool for delegating subtasks to specialized agents."""
     
     @property
     def name(self) -> str:
-        return "call_eagle"
+        return "call_agent"
     
     @property
     def description(self) -> str:
-        return "Call Eagle recursively with new instructions. Use this to break down complex tasks or delegate subtasks."
+        return "Delegate subtasks to specialized agents. Use this to break down complex tasks or leverage different agent capabilities."
     
     @property
     def parameters(self) -> Dict[str, Any]:
@@ -25,7 +25,11 @@ class CallEagleTool(EagleTool):
             "properties": {
                 "instructions": {
                     "type": "string",
-                    "description": "The instructions/task to give to the new Eagle instance"
+                    "description": "The instructions/task to give to the agent"
+                },
+                "agent": {
+                    "type": "string",
+                    "description": "Optional: Name of the specific agent to use for this task"
                 },
                 "provider": {
                     "type": "string",
@@ -49,9 +53,9 @@ class CallEagleTool(EagleTool):
             "required": ["instructions"]
         }
     
-    def execute(self, instructions: str, provider: str = None, model: str = None, 
+    def execute(self, instructions: str, agent: str = None, provider: str = None, model: str = None, 
                 rules: str = None, save_output: bool = False) -> str:
-        """Execute the call_eagle tool."""
+        """Execute the call_agent tool."""
         try:
             # Create temporary .caw file with instructions
             with tempfile.NamedTemporaryFile(mode='w', suffix='.caw', delete=False, encoding='utf-8') as temp_file:
@@ -62,6 +66,8 @@ class CallEagleTool(EagleTool):
             cmd = ['eagle', 'run', temp_caw_path]
             
             # Add optional parameters
+            if agent:
+                cmd.extend(['--agent', agent])
             if provider:
                 cmd.extend(['--provider', provider])
             if model:
@@ -92,7 +98,8 @@ class CallEagleTool(EagleTool):
                 
                 if result.returncode == 0:
                     # Success
-                    response = f"Eagle call completed successfully:\n\n{output}"
+                    agent_name = agent if agent else "default agent"
+                    response = f"Agent call to {agent_name} completed successfully:\n\n{output}"
                     
                     if save_output:
                         # Save output to a file
@@ -103,10 +110,11 @@ class CallEagleTool(EagleTool):
                     return response
                 else:
                     # Error
-                    return f"Eagle call failed (exit code {result.returncode}):\n\nStdout:\n{output}\n\nStderr:\n{error}"
+                    agent_name = agent if agent else "default agent"
+                    return f"Agent call to {agent_name} failed (exit code {result.returncode}):\n\nStdout:\n{output}\n\nStderr:\n{error}"
                     
             except subprocess.TimeoutExpired:
-                return "Eagle call timed out after 5 minutes"
+                return "Agent call timed out after 5 minutes"
             except FileNotFoundError:
                 return "Error: 'eagle' command not found. Make sure Eagle is installed and in your PATH."
             
@@ -118,4 +126,4 @@ class CallEagleTool(EagleTool):
             except:
                 pass
             
-            return f"Error executing Eagle call: {str(e)}"
+            return f"Error executing agent call: {str(e)}"

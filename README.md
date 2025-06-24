@@ -1,19 +1,19 @@
-# Eagle: The natural language platform for orchestrating custom, evolving AI agents
+# Eagle: A natural language multi-agent platform for orchestrating custom agents
 
-**Natural language platform with advanced scripting capabilities**
+**Natural language multi-agent platform for orchestrating AI agents**
 
-Eagle is a natural language platform where you write instructions in plain English instead of code. Write `.caw` files with plain English, and Eagle's AI interprets and executes them using a comprehensive and customizable set of tools. Rather than generating code for you to run, Eagle directly executes your intent. Eagle can edit itself, call itself, and write its own caw files.
+Eagle is a natural language platform where you write instructions in plain English instead of code. Write `.caw` files with plain English, and Eagle's AI interprets and executes them using a comprehensive and customizable set of tools. Rather than generating code for you to run, Eagle directly executes your intent. Eagle can create, edit and call agents, and write its own caw files.
 
 ## What Makes Eagle Different
 
 - **🗣️ Natural Language Interface**: Write instructions in plain English instead of learning syntax
-- **🗣️ Multi-step Orchestrator**: The Eagle interpreter is a multistep tool calling AI orchestrator
+- **🤖 Multi-Agent Orchestrator**: Coordinate multiple specialized AI agents for complex tasks
 - **🚀 Multi-Provider AI**: Works with OpenAI, Claude, Gemini, or OpenRouter
 - **🔄 Self-Modifying Architecture**: Eagle can create tools for itself, modify its own configuration, and generate new behavior rules
 - **⚙️ Easy tool creation**: Tools are python scripts that are easy to spin up. Need memory, access to email, or google drive? ask eagle to make a tool.
 - **⚙️ Zero-Config Tool Sharing**: Tools are self-contained that work across projects and teams
 - **🔗 Workflow Composition**: Eagle understands how tools work together and suggests intelligent multi-step workflows
-- **🔄 Recursive Intelligence**: Eagle can call itself to break down complex tasks, delegate subtasks, and coordinate multi-step solutions
+- **🔄 Agent Delegation**: Agents can delegate subtasks to other specialized agents for complex multi-step solutions
 - **💬 Interactive REPL**: Type commands directly in natural language for immediate execution and feedback
 - **⚡ Smooth Setup**: Guided configuration with automatic .env creation and API key help
 
@@ -202,7 +202,7 @@ Eagle comes with a comprehensive toolkit for software development:
 - **`make_tool`**: Describe a tool in English, Eagle generates the code automatically
 - **`make_rule`**: Generate custom behavior rules for Eagle
 - **`edit_config`**: Modify Eagle configuration programmatically
-- **`call_eagle`**: Recursive Eagle calls for complex task delegation
+- **`call_agent`**: Delegate tasks to specialized agents for complex orchestration
 
 > **Tip**: Use `eagle capabilities` to see what's possible with your current setup
 
@@ -317,7 +317,7 @@ class MyCustomTool(EagleTool):
 
 Tools are categorized by permission level:
 
-- **Allowed**: Execute without prompts (`print`, `read`, `search`, `call_eagle`)
+- **Allowed**: Execute without prompts (`print`, `read`, `search`, `ask_permission`)
 - **Require Permission**: Prompt user before execution (`write`, `shell`, `web`, `git`, `ask_permission`)
 
 When a restricted tool is called, Eagle will show:
