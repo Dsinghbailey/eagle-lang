@@ -1,6 +1,4 @@
-# Eagle: The Natural Language Multi AI Agent Platform
-
-**Natural language multi-agent platform for orchestrating custom AI agents**
+# Eagle: The Natural Language Multi-agent Platform
 
 Eagle is a natural language platform where you write instructions in plain English instead of code. Write `.caw` files with plain English, and Eagle's AI agents interpret and execute them using a comprehensive and customizable set of tools. Rather than generating code for you to run, Eagle directly executes your intent. Eagle agents can create, edit, and call agents, and write their own caw files.
 
