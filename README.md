@@ -1,4 +1,4 @@
-# Eagle: The natural language platform for orchestrating custom, evolving AI agents
+# Eagle:  The Natural Language AI Agent Platform
 
 **Natural language platform with advanced scripting capabilities**
 
