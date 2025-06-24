@@ -1,15 +1,15 @@
-# Eagle: A natural language multi-agent platform for orchestrating custom agents
+# Eagle: The Natural Language Multi AI Agent Platform
 
-**Natural language multi-agent platform for orchestrating AI agents**
+**Natural language multi-agent platform for orchestrating custom AI agents**
 
-Eagle is a natural language platform where you write instructions in plain English instead of code. Write `.caw` files with plain English, and Eagle's AI interprets and executes them using a comprehensive and customizable set of tools. Rather than generating code for you to run, Eagle directly executes your intent. Eagle can create, edit and call agents, and write its own caw files.
+Eagle is a natural language platform where you write instructions in plain English instead of code. Write `.caw` files with plain English, and Eagle's AI agents interpret and execute them using a comprehensive and customizable set of tools. Rather than generating code for you to run, Eagle directly executes your intent. Eagle agents can create, edit, and call agents, and write their own caw files.
 
 ## What Makes Eagle Different
 
 - **🗣️ Natural Language Interface**: Write instructions in plain English instead of learning syntax
 - **🤖 Multi-Agent Orchestrator**: Coordinate multiple specialized AI agents for complex tasks
 - **🚀 Multi-Provider AI**: Works with OpenAI, Claude, Gemini, or OpenRouter
-- **🔄 Self-Modifying Architecture**: Eagle can create tools for itself, modify its own configuration, and generate new behavior rules
+- **🔄 Self-Modifying Architecture**: Eagle agents can create tools for themselves, modify their own configuration, and generate new behavior rules
 - **⚙️ Easy tool creation**: Tools are python scripts that are easy to spin up. Need memory, access to email, or google drive? ask eagle to make a tool.
 - **⚙️ Zero-Config Tool Sharing**: Tools are self-contained that work across projects and teams
 - **🔗 Workflow Composition**: Eagle understands how tools work together and suggests intelligent multi-step workflows
