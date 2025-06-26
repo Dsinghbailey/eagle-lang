@@ -4,6 +4,8 @@
 
 Eagle is a natural language platform where you write instructions in plain English instead of code. Write `.caw` files with plain English, and Eagle's AI agents interpret and execute them using a comprehensive and customizable set of tools. Rather than generating code for you to run, Eagle directly executes your intent. Eagle agents can create, edit, and call agents, and write their own caw files.
 
+Eagle is moving towards becoming a natural language orchestration framework - think CrewAI/LangChain meets Claude Code. The basic idea is to strip an agent down into its basest parts: model and memory system, then expose everything else to the user and agents to modify.
+
 ## What Makes Eagle Different
 
 - **🗣️ Natural Language Interface**: Write instructions in plain English instead of learning syntax
@@ -102,6 +104,8 @@ Example configuration:
   "max_tokens": 4000
 }
 ```
+
+The `eagle_rules.md` file contains the core prompt for the default agent. The config can point to any file or files for rules - these rules are compiled into prompts and added dynamically to tool context sent to the LLM. The `eagle_config` allows for multiple agents, and agents can use the `call_agent` tool to hand off work to specialized agents.
 
 > **🔄 Auto-Updates**: When you create tools with `make_tool`, Eagle automatically updates this config
 
@@ -260,6 +264,22 @@ Eagle will:
 2. Add it to your Eagle configuration automatically
 3. Use the new tool to optimize your images
 4. Complete the entire workflow automatically
+
+### Multi-Agent Workflow
+
+```
+# Tell the default agent to create a specialized agent
+Create a tweet agent that can make tweets every week about our product updates.
+It should have access to our product info and follow our brand voice guidelines.
+```
+
+The flow for Alice who wants to create weekly tweets:
+
+1. **Agent Creation**: Tell default agent to make an agent for weekly tweets
+2. **Specialized Agent**: Default agent creates `tweet_agent` with special rules file, subset of tools, and `.caw` file
+3. **Execution**: Alice calls `eagle make_tweets.caw -a tweet_agent` to generate tweets using the specialized agent
+
+This enables users to build custom, specialized agents for recurring workflows without needing to understand the underlying architecture.
 
 ## Custom Tools
 
